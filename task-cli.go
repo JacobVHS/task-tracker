@@ -25,8 +25,8 @@ func main() {
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
-	// mipCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
-	// mdCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
+	mipCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
+	mdCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
 
 	if len(os.Args) < 2 {
 		fmt.Println("Expected 'add', 'list', 'update', 'delete', 'mark-in-progress', 'mark-done' or 'help' subcommands")
@@ -78,6 +78,24 @@ func main() {
 			delete(taskID)
 		} else {
 			fmt.Println("Usage: task-cli delete [taskID]")
+		}
+
+	case "mark-in-progress":
+		mipCmd.Parse(os.Args[2:])
+		if mipCmd.NArg() > 0 {
+			taskID := mipCmd.Arg(0)
+			status(taskID, "in-progress")
+		} else {
+			fmt.Println("Usage: task-cli mark-in-progress [taskID]")
+		}
+
+	case "mark-done":
+		mdCmd.Parse(os.Args[2:])
+		if mdCmd.NArg() > 0 {
+			taskID := mdCmd.Arg(0)
+			status(taskID, "done")
+		} else {
+			fmt.Println("Usage: task-cli mark-done [taskID]")
 		}
 
 	default:
@@ -293,4 +311,58 @@ func delete(expectedTaskID string) {
 		fmt.Printf("Task with TaskID %d not found\n", searchTaskID)
 	}
 
+}
+
+func status(expectedTaskID string, newStatus string) {
+	// Open the JSON file
+	file, err := os.Open("tasks.json")
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	// Read the file contents
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+
+	// Parse the JSON data
+	var tasks []Task
+	if err := json.Unmarshal(data, &tasks); err != nil {
+		log.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	// Convert expectedTaskID to integer
+	searchTaskID, err := strconv.Atoi(expectedTaskID)
+	if err != nil {
+		log.Fatalf("Invalid task ID: %v", err)
+	}
+
+	// Find and update the task
+	found := false
+	for i := range tasks {
+		if tasks[i].TaskID == searchTaskID {
+			tasks[i].Status = newStatus // Update Status
+			found = true
+			break
+		}
+	}
+	// Check if a match was found
+	if found {
+		// Serialize updated tasks back to JSON
+		updatedData, err := json.MarshalIndent(tasks, "", "  ")
+		if err != nil {
+			log.Fatalf("Failed to serialize updated tasks: %v", err)
+		}
+
+		// Write updated tasks back to the file
+		if err := ioutil.WriteFile("tasks.json", updatedData, 0644); err != nil {
+			log.Fatalf("Failed to write updated tasks to file: %v", err)
+		}
+
+		fmt.Println("Updated tasks saved to file.")
+	} else {
+		fmt.Printf("Task with TaskID %d not found\n", searchTaskID)
+	}
 }
