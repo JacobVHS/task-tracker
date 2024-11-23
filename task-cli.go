@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -22,8 +25,8 @@ func main() {
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
-	mipCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
-	mdCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
+	// mipCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
+	// mdCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
 
 	if len(os.Args) < 2 {
 		fmt.Println("Expected 'add', 'list', 'update', 'delete', 'mark-in-progress', 'mark-done' or 'help' subcommands")
@@ -60,11 +63,21 @@ func main() {
 
 	case "update":
 		updateCmd.Parse(os.Args[2:])
-		if updateCmd.NArg() > 0 {
-			update_state := updateCmd.Arg(0)
-			add(update_state)
+		if updateCmd.NArg() == 2 { // Expecting two arguments: ID and description
+			taskID := updateCmd.Arg(0)
+			newTitle := updateCmd.Arg(1)
+			update(taskID, newTitle) // Replace `add` with `update` or similar logic
 		} else {
 			fmt.Println("Usage: task-cli update [task description]")
+		}
+
+	case "delete":
+		deleteCmd.Parse(os.Args[2:])
+		if deleteCmd.NArg() > 0 {
+			taskID := deleteCmd.Arg(0)
+			delete(taskID)
+		} else {
+			fmt.Println("Usage: task-cli delete [taskID]")
 		}
 
 	default:
@@ -168,4 +181,116 @@ func list(status string) {
 			}
 		}
 	}
+}
+
+func update(expectedTaskID string, newTitle string) {
+	// Open the JSON file
+	file, err := os.Open("tasks.json")
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	// Read the file contents
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+
+	// Parse the JSON data
+	var tasks []Task
+	if err := json.Unmarshal(data, &tasks); err != nil {
+		log.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	// Convert expectedTaskID to integer
+	searchTaskID, err := strconv.Atoi(expectedTaskID)
+	if err != nil {
+		log.Fatalf("Invalid task ID: %v", err)
+	}
+
+	// Find and update the task
+	found := false
+	for i := range tasks {
+		if tasks[i].TaskID == searchTaskID {
+			tasks[i].Description = newTitle // Update description
+			found = true
+			break
+		}
+	}
+
+	// Check if a match was found
+	if found {
+		// Serialize updated tasks back to JSON
+		updatedData, err := json.MarshalIndent(tasks, "", "  ")
+		if err != nil {
+			log.Fatalf("Failed to serialize updated tasks: %v", err)
+		}
+
+		// Write updated tasks back to the file
+		if err := ioutil.WriteFile("tasks.json", updatedData, 0644); err != nil {
+			log.Fatalf("Failed to write updated tasks to file: %v", err)
+		}
+
+		fmt.Println("Updated tasks saved to file.")
+	} else {
+		fmt.Printf("Task with TaskID %d not found\n", searchTaskID)
+	}
+}
+
+func delete(expectedTaskID string) {
+	// open the JSON file
+	file, err := os.Open("tasks.json")
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	// read the contents
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+
+	// parse the json data
+	var tasks []Task
+	if err := json.Unmarshal(data, &tasks); err != nil {
+		log.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	// Convert expectedTaskID to integer
+	searchTaskID, err := strconv.Atoi(expectedTaskID)
+	if err != nil {
+		log.Fatalf("Invalid task ID: %v", err)
+	}
+
+	// Create a new slice excluding the task with matching TaskID
+	var updatedTasks []Task
+	found := false
+	for _, task := range tasks {
+		if task.TaskID == searchTaskID {
+			found = true // Mark as found
+			continue     // Skip this task
+		}
+		updatedTasks = append(updatedTasks, task)
+	}
+
+	// Check if a match was found
+	if found {
+		// Serialize updated tasks back to JSON
+		updatedData, err := json.MarshalIndent(updatedTasks, "", "  ")
+		if err != nil {
+			log.Fatalf("Failed to serialize updated tasks: %v", err)
+		}
+
+		// Write updated tasks back to the file
+		if err := ioutil.WriteFile("tasks.json", updatedData, 0644); err != nil {
+			log.Fatalf("Failed to write updated tasks to file: %v", err)
+		}
+
+		fmt.Println("Task deleted successfully and updated tasks saved to file.")
+	} else {
+		fmt.Printf("Task with TaskID %d not found\n", searchTaskID)
+	}
+
 }
