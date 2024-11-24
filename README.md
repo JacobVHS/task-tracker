@@ -30,7 +30,7 @@ task-cli list in-progress
 
 | Feature | Description | Status
 | ------ | ------ | ------
-| command line | create a binary that is accessible in PATH to interface with | TODO
+| command line | create a binary that is accessible in PATH to interface with | DONE
 | storage/user data | design and implement fastest storage option for json files | TODO
 | pipeline | github actions to build project and tag with version number | TODO
 | document | update readme with full doc requirements | TODO
