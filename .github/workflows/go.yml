@@ -34,8 +34,8 @@ jobs:
 
       - name: Build the project
         run: |
-          go build -o task-cli main.go
+          go build -o task-cli task-cli.go
 
       - name: Verify build
         run: |
-          ./task-cli --help # Replace this with a meaningful command to verify build
+          ./task-cli help
